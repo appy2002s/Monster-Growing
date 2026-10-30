@@ -162,12 +162,12 @@ for(let m of monsters){
    if(decoy)decoy.hp-=m.damage*2;
    else if(turret){turret.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    else if(spider){spider.hp-=m.damage;if(picked.has(8))m.slowed=2;}
-   else if(!playerGodMode&&!noPlayerDamage&&player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
+   else if(!playerGodMode&&player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    m.cd=.9;
   }
  }
 }
-let range=player.range*(player.rangeBuff>0?3:1);if(player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){const hitDamage=playerDamage()*(player.boost>0?4:1);dealPlayerDamage(t,hitDamage);player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+hitDamage.toFixed(1)})}}
+let range=player.range*(player.rangeBuff>0?3:1);if(!noPlayerDamage&&player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){const hitDamage=playerDamage()*(player.boost>0?4:1);dealPlayerDamage(t,hitDamage);player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+hitDamage.toFixed(1)})}}
 if(player.aura>0){monsters.forEach(m=>{if(dist(player,m)<85)dealPlayerDamage(m,12*dt)})}
 for(let tr of traps){tr.cd-=dt;if(tr.healingMushroom)tr.hp=Math.min(tr.maxHp,tr.hp+tr.healingMushroom.rate*dt);if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){const buffed=damageTotems.some(d=>dist(d,tr)<=d.radius);dealPlayerDamage(t,playerDamage()*2*(buffed?1.25:1));tr.cd=.7}}}traps=traps.filter(t=>t.hp>0);damageTotems=damageTotems.filter(t=>t.hp>0);
 for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){dealPlayerDamage(t,playerDamage()*2.5);s.cd=.55}}}spiders=spiders.filter(s=>s.life>0&&s.hp>0);
