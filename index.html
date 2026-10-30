@@ -79,7 +79,7 @@ function useConsumable(targetX=player.x,targetY=player.y){
  if(name==='Frost Nova'){monsters.forEach(m=>{if(dist(player,m)<125){m.frozen=2;dealPlayerDamage(m,4)}})}
  if(name==='Thunderbolt'){
   let t=nearest(player,monsters);
-  if(t){dealPlayerDamage(t,35);effects.push({type:'thunder',x:t.x,y:t.y,t:0,life:.35)}
+  if(t){dealPlayerDamage(t,35);effects.push({type:'thunder',x:t.x,y:t.y,t:0,life:.35})}
  }
  if(name==='Lucky Star')player.xpBoost=12;
  if(name==='XP Surge')gainXP(xpNeed*.5);
