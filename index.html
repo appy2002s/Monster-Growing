@@ -113,7 +113,7 @@ function useConsumable(targetX=player.x,targetY=player.y){
  if(name==='Decoy Totem')effects.push({type:'decoy',x,y,t:0,life:Infinity,hp:50});
 }
 function playerDamage(){let mult=1;if(picked.has(7)){let ratio=player.hp/player.maxHp;if(ratio<=.25)mult=1.5;else if(ratio<=.5)mult=1.25;else if(ratio<=.75)mult=1.1;}return player.damage*mult;}
-function dealPlayerDamage(target,amount){if(noPlayerDamage||!target||target.hp<=0)return;const dealt=Math.min(target.hp,Math.max(0,amount));target.hp-=amount;if(picked.has(6)&&dealt>0)player.hp=Math.min(player.maxHp,player.hp+dealt*.2);}
+function dealPlayerDamage(target,amount){if(!target||target.hp<=0)return;const dealt=Math.min(target.hp,Math.max(0,amount));target.hp-=amount;if(picked.has(6)&&dealt>0)player.hp=Math.min(player.maxHp,player.hp+dealt*.2);}
 function nearest(p,list){let best=null,bd=Infinity;for(let x of list){let d=dist(p,x);if(d<bd){bd=d;best=x}}return best}
 function spawnMonster(){let a=rand(0,Math.PI*2),rad=Math.max(W,H)*.62;let level=enemyLevelOverride??Math.max(1,Math.floor(player.level/3)+Math.floor(rand(0,2)));let r=rand(8,13)+level*.6;monsters.push({x:player.x+Math.cos(a)*rad,y:player.y+Math.sin(a)*rad,r,hp:5+level*4,maxHp:5+level*4,level,speed:rand(22,38)+level*1.5,damage:level,cd:0,frozen:0,trapAggro:Math.random()<.2})}
 function spawnPickup(){
@@ -162,7 +162,7 @@ for(let m of monsters){
    if(decoy)decoy.hp-=m.damage*2;
    else if(turret){turret.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    else if(spider){spider.hp-=m.damage;if(picked.has(8))m.slowed=2;}
-   else if(!playerGodMode&&player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
+   else if(!playerGodMode&&!noPlayerDamage&&player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    m.cd=.9;
   }
  }
