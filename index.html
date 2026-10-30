@@ -73,7 +73,7 @@ function useConsumable(targetX=player.x,targetY=player.y){
  document.getElementById('consdesc').textContent='Find a glowing pickup';
  const x=clamp(targetX,25,W-25), y=clamp(targetY,75,H-25);
  if(name==='Spider Swarm'){
-  for(let i=0;i<3;i++)spiders.push({x:player.x+rand(-18,18),y:player.y+rand(-18,18),life:10,cd:0});
+  for(let i=0;i<3;i++)spiders.push({x:player.x+rand(-18,18),y:player.y+rand(-18,18),life:10,cd:0,hp:30,maxHp:30});
  }
  if(name==='Meteor Drop'){
   effects.push({type:'meteor',x,y,t:0,life:.8});
@@ -89,7 +89,7 @@ function useConsumable(targetX=player.x,targetY=player.y){
  if(name==='XP Surge')gainXP(xpNeed*.5);
  if(name==='Fire Trail')effects.push({type:'fire',x,y,t:0,life:5});
  if(name==='Orbiting Orbs')orbs.push({life:8,t:0});
- if(name==='Decoy Totem')effects.push({type:'decoy',x,y,t:0,life:8,hp:50});
+ if(name==='Decoy Totem')effects.push({type:'decoy',x,y,t:0,life:Infinity,hp:50});
 }
 function playerDamage(){let mult=1;if(picked.has(7)){let ratio=player.hp/player.maxHp;if(ratio<=.25)mult=1.5;else if(ratio<=.5)mult=1.25;else if(ratio<=.75)mult=1.1;}return player.damage*mult;}
 function dealPlayerDamage(target,amount){if(!target||target.hp<=0)return;const dealt=Math.min(target.hp,Math.max(0,amount));target.hp-=amount;if(picked.has(6)&&dealt>0)player.hp=Math.min(player.maxHp,player.hp+dealt*.2);}
@@ -129,16 +129,18 @@ for(let m of monsters){
  const decoy=effects.find(e=>e.type==='decoy'&&e.life>0&&e.hp>0);
  // Decoys attract monsters strongly; only a minority are drawn to turrets.
  const turret=(!decoy&&m.trapAggro&&traps.length)?nearest(m,traps):null;
- const target=decoy||turret||player;
+ const spider=(!decoy&&!turret&&spiders.length&&Math.random()<.12)?nearest(m,spiders):null;
+  const target=decoy||turret||spider||player;
  if(m.frozen<=0){
-  let d=dist(m,target), contact=(decoy?14:turret?10:player.r)+m.r+3;
+  let d=dist(m,target), contact=(decoy?14:turret?10:spider?8:player.r)+m.r+3;
   if(d>contact){
    const slowFactor=m.slowed>0?.5:1;
    m.x+=(target.x-m.x)/d*m.speed*slowFactor*dt;
    m.y+=(target.y-m.y)/d*m.speed*slowFactor*dt;
   }else if(m.cd<=0){
    if(decoy)decoy.hp-=m.damage*2;
-   else if(turret)turret.hp-=m.damage;
+   else if(turret){turret.hp-=m.damage;if(picked.has(8))m.slowed=2;}
+   else if(spider){spider.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    else if(player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    m.cd=.9;
   }
@@ -147,7 +149,7 @@ for(let m of monsters){
 let range=player.range*(player.rangeBuff>0?3:1);if(player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){const hitDamage=playerDamage()*(player.boost>0?4:1);dealPlayerDamage(t,hitDamage);player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+hitDamage.toFixed(1)})}}
 if(player.aura>0){monsters.forEach(m=>{if(dist(player,m)<85)dealPlayerDamage(m,12*dt)})}
 for(let tr of traps){tr.cd-=dt;if(tr.healingMushroom)tr.hp=Math.min(tr.maxHp,tr.hp+tr.healingMushroom.rate*dt);if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){dealPlayerDamage(t,playerDamage()*2);tr.cd=.7}}}traps=traps.filter(t=>t.hp>0);
-for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){dealPlayerDamage(t,2.5);s.cd=.55}}}spiders=spiders.filter(s=>s.life>0);
+for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){dealPlayerDamage(t,playerDamage()*2.5);s.cd=.55}}}spiders=spiders.filter(s=>s.life>0&&s.hp>0);
 for(let o of orbs){o.life-=dt;o.t+=dt;monsters.forEach(m=>{let a=o.t*4;let ox=player.x+Math.cos(a)*42,oy=player.y+Math.sin(a)*42;if(Math.hypot(m.x-ox,m.y-oy)<m.r+9)dealPlayerDamage(m,8*dt)})}orbs=orbs.filter(o=>o.life>0);
 for(let e of effects){
  e.t+=dt;
@@ -223,7 +225,7 @@ if(e.type==='heal'){ctx.fillStyle='rgba(123,218,148,0.13)';ctx.strokeStyle='#91e
 if(e.type==='decoy'&&e.healingMushroom){ctx.fillStyle='rgba(125,211,143,0.12)';ctx.strokeStyle='rgba(143,229,158,0.85)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(e.x,e.y,e.healingMushroom.radius,0,Math.PI*2);ctx.fill();ctx.stroke();}if(e.type==='decoy'){ctx.fillStyle='#d8bd75';ctx.beginPath();ctx.arc(e.x,e.y,12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff0b8';ctx.fillRect(e.x-3,e.y-18,6,8)}
 if(e.type==='thunder'){ctx.strokeStyle='#a9eaff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(e.x,e.y-85);ctx.lineTo(e.x-12,e.y-45);ctx.lineTo(e.x+9,e.y-25);ctx.lineTo(e.x,e.y);ctx.stroke()}}
 for(let m of monsters){ctx.fillStyle=m.frozen>0?'#8ed9ef':'#bd6e69';ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f2d7d0';ctx.fillRect(m.x-m.r,m.y-m.r-7,m.r*2,3);ctx.fillStyle='#8bdb83';ctx.fillRect(m.x-m.r,m.y-m.r-7,m.r*2*clamp(m.hp/m.maxHp,0,1),3);ctx.fillStyle='#291d20';ctx.beginPath();ctx.arc(m.x-m.r*.3,m.y-2,2,0,7);ctx.arc(m.x+m.r*.3,m.y-2,2,0,7);ctx.fill()}
-for(let s of spiders){ctx.fillStyle='#c3a4db';ctx.beginPath();ctx.arc(s.x,s.y,6,0,7);ctx.fill();ctx.strokeStyle='#c3a4db';for(let i=0;i<4;i++){let a=i*Math.PI/2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x+Math.cos(a)*11,s.y+Math.sin(a)*11);ctx.stroke()}}
+for(let s of spiders){ctx.fillStyle='#c3a4db';ctx.beginPath();ctx.arc(s.x,s.y,6,0,7);ctx.fill();ctx.strokeStyle='#c3a4db';for(let i=0;i<4;i++){let a=i*Math.PI/2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x+Math.cos(a)*11,s.y+Math.sin(a)*11);ctx.stroke()}ctx.fillStyle='#263238';ctx.fillRect(s.x-9,s.y-15,18,3);ctx.fillStyle='#9be28d';ctx.fillRect(s.x-9,s.y-15,18*Math.max(0,s.hp/s.maxHp),3)}
 for(let o of orbs){for(let i=0;i<3;i++){let a=o.t*4+i*Math.PI*2/3;ctx.fillStyle='#8ce6ef';ctx.beginPath();ctx.arc(player.x+Math.cos(a)*42,player.y+Math.sin(a)*42,6,0,7);ctx.fill()}}
 if(player.aura>0){ctx.strokeStyle='#73dce9';ctx.lineWidth=4;ctx.beginPath();ctx.arc(player.x,player.y,85,0,7);ctx.stroke()}if(player.invuln>0){ctx.strokeStyle='#a7e8ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(player.x,player.y,player.r+10,0,7);ctx.stroke()}
 ctx.fillStyle=player.tired>0?'#888e96':player.boost>0?'#f0bd65':'#8ecb83';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,7);ctx.fill();ctx.fillStyle='#f1f5f8';ctx.font='11px system-ui';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(player.name,player.x,player.y-player.r-7);ctx.textBaseline='alphabetic';ctx.fillStyle='#24372a';ctx.beginPath();ctx.arc(player.x-player.r*.28,player.y-2,2.5,0,7);ctx.arc(player.x+player.r*.28,player.y-2,2.5,0,7);ctx.fill();
