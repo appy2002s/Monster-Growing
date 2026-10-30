@@ -57,7 +57,7 @@ addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arr
 canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top});
 canvas.addEventListener('pointerdown',e=>{if(aiming&&e.button===0){e.preventDefault();useConsumable(mouse.x,mouse.y);aiming=false}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&aiming){aiming=false;document.getElementById('consdesc').textContent='Hold Q to aim · click to place'}});
-function activate(id){if(!running||cooldowns[id]>0)return;switch(id){case 0:traps.push({x:player.x,y:player.y,life:18,cd:0});break;case 1:player.invuln=3;cooldowns[id]=9;break;case 2:player.boost=5;player.tired=0;cooldowns[id]=15;break;case 3:player.aura=5;player.auraCD=10;cooldowns[id]=10;break;case 4:player.speedBuff=4.5;cooldowns[id]=9;break;case 5:player.rangeBuff=8;cooldowns[id]=12;break;}if(id===0)cooldowns[id]=7;}
+function activate(id){if(!running||cooldowns[id]>0)return;switch(id){case 0:if(traps.length<2)traps.push({x:player.x,y:player.y,cd:0,hp:60,maxHp:60});break;case 1:player.invuln=3;cooldowns[id]=9;break;case 2:player.boost=5;player.tired=0;cooldowns[id]=15;break;case 3:player.aura=5;player.auraCD=10;cooldowns[id]=10;break;case 4:player.speedBuff=4.5;cooldowns[id]=9;break;case 5:player.rangeBuff=8;cooldowns[id]=12;break;}if(id===0)cooldowns[id]=7;}
 function useConsumable(targetX=player.x,targetY=player.y){
  if(!cons)return;
  let name=cons;
@@ -85,7 +85,7 @@ function useConsumable(targetX=player.x,targetY=player.y){
  if(name==='Decoy Totem')effects.push({type:'decoy',x,y,t:0,life:8,hp:50});
 }
 function nearest(p,list){let best=null,bd=Infinity;for(let x of list){let d=dist(p,x);if(d<bd){bd=d;best=x}}return best}
-function spawnMonster(){let a=rand(0,Math.PI*2),rad=Math.max(W,H)*.62;let level=Math.max(1,Math.floor(player.level/3)+Math.floor(rand(0,2)));let r=rand(8,13)+level*.6;monsters.push({x:player.x+Math.cos(a)*rad,y:player.y+Math.sin(a)*rad,r,hp:5+level*4,maxHp:5+level*4,level,speed:rand(22,38)+level*1.5,damage:Math.max(1,level*.65),cd:0,frozen:0})}
+function spawnMonster(){let a=rand(0,Math.PI*2),rad=Math.max(W,H)*.62;let level=Math.max(1,Math.floor(player.level/3)+Math.floor(rand(0,2)));let r=rand(8,13)+level*.6;monsters.push({x:player.x+Math.cos(a)*rad,y:player.y+Math.sin(a)*rad,r,hp:5+level*4,maxHp:5+level*4,level,speed:rand(22,38)+level*1.5,damage:Math.max(1,level*.65),cd:0,frozen:0,trapAggro:Math.random()<.2})}
 function spawnPickup(){
  let a=rand(0,Math.PI*2),r=rand(110,Math.min(330,Math.max(W,H)*.48));
  // Spider Swarm has a modestly higher weight (1.5×) than each other consumable.
@@ -118,14 +118,17 @@ spawnTimer-=dt;if(spawnTimer<=0&&monsters.length<65){spawnMonster();spawnTimer=M
 for(let m of monsters){
  m.cd-=dt;m.frozen=Math.max(0,m.frozen-dt);
  const decoy=effects.find(e=>e.type==='decoy'&&e.life>0&&e.hp>0);
- const target=decoy||player;
+ // Decoys attract monsters strongly; only a minority are drawn to turrets.
+ const turret=(!decoy&&m.trapAggro&&traps.length)?nearest(m,traps):null;
+ const target=decoy||turret||player;
  if(m.frozen<=0){
-  let d=dist(m,target), contact=(decoy?14:player.r)+m.r+3;
+  let d=dist(m,target), contact=(decoy?14:turret?10:player.r)+m.r+3;
   if(d>contact){
    m.x+=(target.x-m.x)/d*m.speed*dt;
    m.y+=(target.y-m.y)/d*m.speed*dt;
   }else if(m.cd<=0){
    if(decoy)decoy.hp-=m.damage*2;
+   else if(turret)turret.hp-=m.damage;
    else if(player.invuln<=0)player.hp-=m.damage;
    m.cd=.9;
   }
@@ -133,7 +136,7 @@ for(let m of monsters){
 }
 let range=player.range*(player.rangeBuff>0?3:1);if(player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){t.hp-=player.damage*(player.boost>0?4:1);player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+(player.damage*(player.boost>0?4:1)).toFixed(0)})}}
 if(player.aura>0){monsters.forEach(m=>{if(dist(player,m)<85)m.hp-=12*dt})}
-for(let tr of traps){tr.life-=dt;tr.cd-=dt;if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){t.hp-=player.damage*2;tr.cd=.7}}}traps=traps.filter(t=>t.life>0);
+for(let tr of traps){tr.cd-=dt;if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){t.hp-=player.damage*2;tr.cd=.7}}}traps=traps.filter(t=>t.hp>0);
 for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){t.hp-=2.5;s.cd=.55}}}spiders=spiders.filter(s=>s.life>0);
 for(let o of orbs){o.life-=dt;o.t+=dt;monsters.forEach(m=>{let a=o.t*4;let ox=player.x+Math.cos(a)*42,oy=player.y+Math.sin(a)*42;if(Math.hypot(m.x-ox,m.y-oy)<m.r+9)m.hp-=8*dt})}orbs=orbs.filter(o=>o.life>0);
 for(let e of effects){
@@ -199,6 +202,10 @@ for(let tr of traps){
  ctx.setLineDash([]);
  ctx.fillStyle='#b78c60';ctx.fillRect(tr.x-8,tr.y-7,16,14);
  ctx.strokeStyle='#e7c18e';ctx.strokeRect(tr.x-8,tr.y-7,16,14);
+ // Turret health bar and numeric health.
+ ctx.fillStyle='#26343b';ctx.fillRect(tr.x-18,tr.y-21,36,5);
+ ctx.fillStyle='#e47c72';ctx.fillRect(tr.x-18,tr.y-21,36*clamp(tr.hp/tr.maxHp,0,1),5);
+ ctx.fillStyle='#f1e8dc';ctx.font='9px system-ui';ctx.textAlign='center';ctx.fillText(Math.ceil(tr.hp)+'/'+tr.maxHp,tr.x,tr.y-25);
  ctx.restore();
 }
 for(let e of effects){if(e.type==='meteor'){ctx.fillStyle='#f1a15d';ctx.beginPath();ctx.arc(e.x,e.y,105*(e.t/e.life),0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff0b0';ctx.beginPath();ctx.arc(e.x,e.y,18,0,Math.PI*2);ctx.fill()}if(e.type==='fire'){ctx.strokeStyle='#e87545';ctx.lineWidth=5;ctx.beginPath();ctx.arc(e.x,e.y,85,0,Math.PI*2);ctx.stroke()}
