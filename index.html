@@ -32,7 +32,10 @@ const innate=[
  ['Damage Boost','Deal 4× damage for 5 seconds, then cannot deal damage for 5 seconds.'],
  ['Electrical Aura','Damage nearby monsters for 5 seconds; 5-second recharge.'],
  ['Speed Boost','Move at 1.5× speed for 4.5 seconds.'],
- ['Extended Range','Triple your automatic attack range for 8 seconds.']
+ ['Extended Range','Triple your automatic attack range for 8 seconds.'],
+ ['Vampiric Strike','Restore 10% of the damage you deal as health.'],
+ ['Berserker','Deal more damage as your health gets lower: +10% below 75%, +25% below 50%, and +50% below 25% health.'],
+ ['Frost Armor','Monsters that hit you are slowed by 50% for 2 seconds.']
 ];
 const randoms=[
  ['Spider Swarm','Summon 3 little spiders that hunt nearby monsters for 10 seconds.'],
@@ -57,7 +60,7 @@ addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arr
 canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top});
 canvas.addEventListener('pointerdown',e=>{if(aiming&&e.button===0){e.preventDefault();useConsumable(mouse.x,mouse.y);aiming=false}});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&aiming){aiming=false;document.getElementById('consdesc').textContent='Hold Q to aim · click to place'}});
-function activate(id){if(!running||cooldowns[id]>0)return;switch(id){case 0:if(traps.length<2)traps.push({x:player.x,y:player.y,cd:0,hp:60,maxHp:60});break;case 1:player.invuln=3;cooldowns[id]=9;break;case 2:player.boost=5;player.tired=0;cooldowns[id]=15;break;case 3:player.aura=5;player.auraCD=10;cooldowns[id]=10;break;case 4:player.speedBuff=4.5;cooldowns[id]=9;break;case 5:player.rangeBuff=8;cooldowns[id]=12;break;}if(id===0)cooldowns[id]=7;}
+function activate(id){if(!running||cooldowns[id]>0)return;if(id>=6)return;switch(id){case 0:if(traps.length<2)traps.push({x:player.x,y:player.y,cd:0,hp:60,maxHp:60});break;case 1:player.invuln=3;cooldowns[id]=9;break;case 2:player.boost=5;player.tired=0;cooldowns[id]=15;break;case 3:player.aura=5;player.auraCD=10;cooldowns[id]=10;break;case 4:player.speedBuff=4.5;cooldowns[id]=9;break;case 5:player.rangeBuff=8;cooldowns[id]=12;break;}if(id===0)cooldowns[id]=7;}
 function useConsumable(targetX=player.x,targetY=player.y){
  if(!cons)return;
  let name=cons;
@@ -70,13 +73,13 @@ function useConsumable(targetX=player.x,targetY=player.y){
  }
  if(name==='Meteor Drop'){
   effects.push({type:'meteor',x,y,t:0,life:.8});
-  monsters.forEach(m=>{if(Math.hypot(m.x-x,m.y-y)<105)m.hp-=18});
+  monsters.forEach(m=>{if(Math.hypot(m.x-x,m.y-y)<105)dealPlayerDamage(m,18)});
  }
  if(name==='Healing Bloom')effects.push({type:'heal',x,y,t:0,life:3});
- if(name==='Frost Nova'){monsters.forEach(m=>{if(dist(player,m)<125){m.frozen=2;m.hp-=4}})}
+ if(name==='Frost Nova'){monsters.forEach(m=>{if(dist(player,m)<125){m.frozen=2;dealPlayerDamage(m,4)}})}
  if(name==='Thunderbolt'){
   let t=nearest(player,monsters);
-  if(t){t.hp-=35;effects.push({type:'thunder',x:t.x,y:t.y,t:0,life:.35})}
+  if(t){dealPlayerDamage(t,35);effects.push({type:'thunder',x:t.x,y:t.y,t:0,life:.35)}
  }
  if(name==='Lucky Star')player.xpBoost=12;
  if(name==='XP Surge')gainXP(xpNeed*.5);
@@ -84,6 +87,8 @@ function useConsumable(targetX=player.x,targetY=player.y){
  if(name==='Orbiting Orbs')orbs.push({life:8,t:0});
  if(name==='Decoy Totem')effects.push({type:'decoy',x,y,t:0,life:8,hp:50});
 }
+function playerDamage(){let mult=1;if(picked.has(7)){let ratio=player.hp/player.maxHp;if(ratio<=.25)mult=1.5;else if(ratio<=.5)mult=1.25;else if(ratio<=.75)mult=1.1;}return player.damage*mult;}
+function dealPlayerDamage(target,amount){if(!target||target.hp<=0)return;const dealt=Math.min(target.hp,Math.max(0,amount));target.hp-=amount;if(picked.has(6)&&dealt>0)player.hp=Math.min(player.maxHp,player.hp+dealt*.1);}
 function nearest(p,list){let best=null,bd=Infinity;for(let x of list){let d=dist(p,x);if(d<bd){bd=d;best=x}}return best}
 function spawnMonster(){let a=rand(0,Math.PI*2),rad=Math.max(W,H)*.62;let level=Math.max(1,Math.floor(player.level/3)+Math.floor(rand(0,2)));let r=rand(8,13)+level*.6;monsters.push({x:player.x+Math.cos(a)*rad,y:player.y+Math.sin(a)*rad,r,hp:5+level*4,maxHp:5+level*4,level,speed:rand(22,38)+level*1.5,damage:Math.max(1,level*.65),cd:0,frozen:0,trapAggro:Math.random()<.2})}
 function spawnPickup(){
@@ -116,7 +121,7 @@ for(let id of picked)cooldowns[id]=Math.max(0,(cooldowns[id]||0)-dt);
 let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),mag=Math.hypot(dx,dy)||1;let speed=player.speed*(player.speedBuff>0?1.5:1);player.x=clamp(player.x+dx/mag*speed*dt,player.r,W-player.r);player.y=clamp(player.y+dy/mag*speed*dt,player.r+68,H-player.r);
 spawnTimer-=dt;if(spawnTimer<=0&&monsters.length<65){spawnMonster();spawnTimer=Math.max(.25,1.05-player.level*.018)}pickupTimer-=dt;if(pickupTimer<=0&&pickups.length<5){spawnPickup();pickupTimer=rand(8,14)}
 for(let m of monsters){
- m.cd-=dt;m.frozen=Math.max(0,m.frozen-dt);
+ m.cd-=dt;m.frozen=Math.max(0,m.frozen-dt);m.slowed=Math.max(0,m.slowed||0);
  const decoy=effects.find(e=>e.type==='decoy'&&e.life>0&&e.hp>0);
  // Decoys attract monsters strongly; only a minority are drawn to turrets.
  const turret=(!decoy&&m.trapAggro&&traps.length)?nearest(m,traps):null;
@@ -124,24 +129,25 @@ for(let m of monsters){
  if(m.frozen<=0){
   let d=dist(m,target), contact=(decoy?14:turret?10:player.r)+m.r+3;
   if(d>contact){
-   m.x+=(target.x-m.x)/d*m.speed*dt;
-   m.y+=(target.y-m.y)/d*m.speed*dt;
+   const slowFactor=m.slowed>0?.5:1;
+   m.x+=(target.x-m.x)/d*m.speed*slowFactor*dt;
+   m.y+=(target.y-m.y)/d*m.speed*slowFactor*dt;
   }else if(m.cd<=0){
    if(decoy)decoy.hp-=m.damage*2;
    else if(turret)turret.hp-=m.damage;
-   else if(player.invuln<=0)player.hp-=m.damage;
+   else if(player.invuln<=0){player.hp-=m.damage;if(picked.has(8))m.slowed=2;}
    m.cd=.9;
   }
  }
 }
-let range=player.range*(player.rangeBuff>0?3:1);if(player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){t.hp-=player.damage*(player.boost>0?4:1);player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+(player.damage*(player.boost>0?4:1)).toFixed(0)})}}
-if(player.aura>0){monsters.forEach(m=>{if(dist(player,m)<85)m.hp-=12*dt})}
-for(let tr of traps){tr.cd-=dt;if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){t.hp-=player.damage*2;tr.cd=.7}}}traps=traps.filter(t=>t.hp>0);
-for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){t.hp-=2.5;s.cd=.55}}}spiders=spiders.filter(s=>s.life>0);
-for(let o of orbs){o.life-=dt;o.t+=dt;monsters.forEach(m=>{let a=o.t*4;let ox=player.x+Math.cos(a)*42,oy=player.y+Math.sin(a)*42;if(Math.hypot(m.x-ox,m.y-oy)<m.r+9)m.hp-=8*dt})}orbs=orbs.filter(o=>o.life>0);
+let range=player.range*(player.rangeBuff>0?3:1);if(player.attackCD<=0&&player.tired<=0){let t=nearest(player,monsters);if(t&&dist(player,t)<range){dealPlayerDamage(t,playerDamage()*(player.boost>0?4:1));player.attackCD=.42;particles.push({x:t.x,y:t.y-10,t:0,life:.35,text:'-'+(player.damage*(player.boost>0?4:1)).toFixed(0)})}}
+if(player.aura>0){monsters.forEach(m=>{if(dist(player,m)<85)dealPlayerDamage(m,12*dt)})}
+for(let tr of traps){tr.cd-=dt;if(tr.cd<=0){let t=nearest(tr,monsters);if(t&&dist(tr,t)<155){dealPlayerDamage(t,playerDamage()*2);tr.cd=.7}}}traps=traps.filter(t=>t.hp>0);
+for(let s of spiders){s.life-=dt;s.cd-=dt;let t=nearest(s,monsters);if(t){let d=dist(s,t);if(d>t.r+7){s.x+=(t.x-s.x)/d*100*dt;s.y+=(t.y-s.y)/d*100*dt}else if(s.cd<=0){dealPlayerDamage(t,2.5);s.cd=.55}}}spiders=spiders.filter(s=>s.life>0);
+for(let o of orbs){o.life-=dt;o.t+=dt;monsters.forEach(m=>{let a=o.t*4;let ox=player.x+Math.cos(a)*42,oy=player.y+Math.sin(a)*42;if(Math.hypot(m.x-ox,m.y-oy)<m.r+9)dealPlayerDamage(m,8*dt)})}orbs=orbs.filter(o=>o.life>0);
 for(let e of effects){
  e.t+=dt;
- if(e.type==='fire')monsters.forEach(m=>{if(Math.hypot(m.x-e.x,m.y-e.y)<85)m.hp-=3*dt});
+ if(e.type==='fire')monsters.forEach(m=>{if(Math.hypot(m.x-e.x,m.y-e.y)<85)dealPlayerDamage(m,3*dt)});
  if(e.type==='heal'&&Math.hypot(player.x-e.x,player.y-e.y)<85)player.hp=Math.min(player.maxHp,player.hp+50*dt);
 }
 effects=effects.filter(e=>e.t<e.life&&(e.type!=='decoy'||e.hp>0));
@@ -150,7 +156,7 @@ let before=monsters.length;monsters=monsters.filter(m=>{if(m.hp<=0){kills++;coin
 particles=particles.filter(p=>{p.t+=dt;return p.t<p.life});
 if(player.hp<=0){player.hp=0;running=false;document.getElementById('gameover').classList.remove('hidden');document.getElementById('finalstats').textContent=`You reached level ${player.level}, defeated ${kills} monsters, and collected ${coins} coins.`}
 updateHUD();}
-function updateHUD(){document.getElementById('level').textContent='Level '+player.level;document.getElementById('size').textContent='Size '+player.size.toFixed(1)+'×';document.getElementById('xptext').textContent=`XP ${Math.floor(player.xp)} / ${xpNeed}`;document.getElementById('xpbar').style.width=(player.xp/xpNeed*100)+'%';document.getElementById('damage').textContent=`Damage ${player.damage.toFixed(1)} · Range ${Math.round(player.range*(player.rangeBuff>0?3:1))}`;document.getElementById('kills').textContent=`Kills ${kills} · Coins ${coins}`;document.getElementById('health').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;document.getElementById('hpbar').style.width=(player.hp/player.maxHp*100)+'%';[...picked].forEach(id=>{let el=document.getElementById('ab'+id);if(el){let label=el.querySelector('span');let cd=cooldowns[id]||0;label.textContent=cd>0?cd.toFixed(1)+'s cooldown':(id===2&&player.tired>0?'Exhausted':'Ready')}})}
+function updateHUD(){document.getElementById('level').textContent='Level '+player.level;document.getElementById('size').textContent='Size '+player.size.toFixed(1)+'×';document.getElementById('xptext').textContent=`XP ${Math.floor(player.xp)} / ${xpNeed}`;document.getElementById('xpbar').style.width=(player.xp/xpNeed*100)+'%';document.getElementById('damage').textContent=`Damage ${player.damage.toFixed(1)} · Range ${Math.round(player.range*(player.rangeBuff>0?3:1))}`;document.getElementById('kills').textContent=`Kills ${kills} · Coins ${coins}`;document.getElementById('health').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;document.getElementById('hpbar').style.width=(player.hp/player.maxHp*100)+'%';[...picked].forEach(id=>{let el=document.getElementById('ab'+id);if(el){let label=el.querySelector('span');let cd=cooldowns[id]||0;label.textContent=id===6?'Passive · 10% lifesteal':id===7?'Passive · low-health damage':id===8?'Passive · slows attackers':cd>0?cd.toFixed(1)+'s cooldown':(id===2&&player.tired>0?'Exhausted':'Ready')}})}
 function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#1b2932';ctx.fillRect(0,0,W,H);ctx.strokeStyle='#263943';ctx.lineWidth=1;let gap=42,ox=(-player.x)%gap,oy=(-player.y)%gap;for(let x=ox;x<W;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=oy;y<H;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
 // Range indicators: the player's automatic attack radius and each crossbow trap's firing radius.
 const playerRange = player.range * (player.rangeBuff > 0 ? 3 : 1);
