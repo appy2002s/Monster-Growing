@@ -29,7 +29,7 @@ const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');let W=i
 function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
 const innate=[
  ['Combat Drone','Deploy a hovering drone that independently targets monsters and fires lasers for 50% of your current damage. Maximum 3 drones; permanent and indestructible.'],
- ['Shield','Become completely invulnerable for 3 seconds.']
+ ['Shield','Become completely invulnerable for 3 seconds.'],
  ['Damage Boost','Deal 4× damage for 5 seconds, then cannot deal damage for 5 seconds.'],
  ['Electrical Aura','Damage nearby monsters for 5 seconds; 5-second recharge.'],
  ['Speed Boost','Move at 1.5× speed for 4.5 seconds.'],
