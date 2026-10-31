@@ -67,7 +67,7 @@ document.getElementById('grantCheatAbility').onclick=()=>{if(!running)return;con
 document.getElementById('closeCheats').onclick=()=>cheatMenu.classList.add('hidden');
 document.getElementById('toggleRegularCheat').onclick=()=>{const choice=document.getElementById('regularCheat').value;if(choice==='god')playerGodMode=!playerGodMode;else if(choice==='noDamage')noPlayerDamage=!noPlayerDamage;else{document.getElementById('cheatMenuMessage').textContent='Choose God Mode or No Damage first.';return}document.getElementById('regularCheatStatus').textContent='God Mode: '+(playerGodMode?'ON':'OFF')+' · No Damage: '+(noPlayerDamage?'ON':'OFF');document.getElementById('cheatMenuMessage').textContent=(choice==='god'?'God Mode':'No Damage')+' is now '+(choice==='god'?(playerGodMode?'ON':'OFF'):(noPlayerDamage?'ON':'OFF'))+'.'};
 function readTestLevel(id){const input=document.getElementById(id),value=Number(input.value);if(!Number.isFinite(value)||input.value.trim()==='')return null;const level=Math.round(value);if(level<1||level>100){input.value=String(clamp(level,1,100));return null}input.value=String(level);return level}
-function setMonsterLevel(m,level){const ratio=m.maxHp>0?m.hp/m.maxHp:1;m.level=level;const baseHp=(5+level*4)*1.2,baseDamage=level*1.2,baseSpeed=rand(22,38)+level*1.5;const hpMult=m.type==='miniboss'?10:m.type==='tank'?3:1,damageMult=m.type==='miniboss'?2:m.type==='shooter'?.5:m.type==='placeableHunter'?.75:1,speedMult=m.type==='placeableHunter'?1.3:m.type==='tank'?.82:m.type==='shooter'?.9:1;m.r=(rand(8,13)+level*.6)*(m.type==='miniboss'?2.25:m.type==='tank'?1.2:1);m.maxHp=baseHp*hpMult;m.hp=Math.max(1,m.maxHp*ratio);m.damage=baseDamage*damageMult;m.speed=baseSpeed*speedMult}
+function setMonsterLevel(m,level){const ratio=m.maxHp>0?m.hp/m.maxHp:1;m.level=level;const baseHp=(5+level*4)*1.2,baseDamage=level*1.2,baseSpeed=rand(22,38)+level*1.5;const hpMult=m.type==='miniboss'?10:m.type==='tank'?3:1,damageMult=m.type==='miniboss'?2:m.type==='shooter'?.5:m.type==='placeableHunter'?.75:1,speedMult=m.type==='placeableHunter'?1.3:1;m.r=(rand(8,13)+level*.6)*(m.type==='miniboss'?2.25:m.type==='tank'?1.2:1);m.maxHp=baseHp*hpMult;m.hp=Math.max(1,m.maxHp*ratio);m.damage=baseDamage*damageMult;m.speed=baseSpeed*speedMult}
 document.getElementById('setTestCoins').onclick=()=>{const input=document.getElementById('testCoinAmount'),raw=input.value.trim(),amount=Number(raw);if(raw===''||!Number.isSafeInteger(amount)||amount<0){document.getElementById('cheatMenuMessage').textContent='Enter a whole-number coin amount of 0 or more.';return}coins=amount;saveProfileCoins();updateProfileCoins();document.getElementById('cheatMenuMessage').textContent='Your profile coin balance is now '+coins.toLocaleString()+' coins.'};
 document.getElementById('setEnemyLevel').onclick=()=>{const level=readTestLevel('enemyLevelInput');if(level===null){document.getElementById('cheatMenuMessage').textContent='Enter an enemy level from 1 to 100.';return}enemyLevelOverride=level;monsters.forEach(m=>setMonsterLevel(m,level));updateHUD();document.getElementById('cheatMenuMessage').textContent='Average enemy level set to '+level+'. Existing enemies and future spawns use this level.'};
 document.getElementById('setPlayerLevel').onclick=()=>{const level=readTestLevel('playerLevelInput');if(level===null){document.getElementById('cheatMenuMessage').textContent='Enter a player level from 1 to 100.';return}const growth=[1,.50,.25,.15,.10,.07,.05,.03,.025,.02];let damage=1,need=12;for(let current=1;current<level;current++){damage*=1+(growth[Math.min(current-1,9)]??.02);need=Math.floor(need*1.32+5)}player.level=level;player.damage=damage;player.maxHp=100+(level-1)*4;player.hp=player.maxHp;player.xp=0;xpNeed=need;player.size=Math.min(2.8,1+(level-1)*.075);player.r=12*player.size;updateHUD();document.getElementById('cheatMenuMessage').textContent='Your player level is now '+level+'. Damage, size, maximum health, and XP requirement have been recalculated.'};
@@ -131,7 +131,7 @@ function spawnMonster(){
  const roll=Math.random();let type=roll<.001?'miniboss':roll<.151?'shooter':roll<.271?'tank':roll<.421?'placeableHunter':'regular';
  const hpMult=type==='miniboss'?10:type==='tank'?3:1;
  const damageMult=type==='miniboss'?2:type==='shooter'?.5:type==='placeableHunter'?.75:1;
- const speedMult=type==='placeableHunter'?1.3:type==='tank'?.82:type==='shooter'?.9:1;
+ const speedMult=type==='placeableHunter'?1.3:1;
  const maxHp=baseHp*hpMult;
  monsters.push({x:player.x+Math.cos(a)*rad,y:player.y+Math.sin(a)*rad,r:(rand(8,13)+level*.6)*(type==='miniboss'?2.25:type==='tank'?1.2:1),hp:maxHp,maxHp,level,speed:baseSpeed*speedMult,damage:baseDamage*damageMult,cd:0,frozen:0,type,trapAggro:Math.random()<.2,chickenAggro:Math.random()<.06,shootRange:type==='shooter'?265:0,shootCd:rand(.2,1),shotFlash:0});
 }
@@ -172,11 +172,11 @@ for(let m of monsters){
  const turret=(!decoy&&!hunterTarget&&m.trapAggro&&(traps.length||damageTotems.length))?nearest(m,[...traps,...damageTotems]):null;
  const spider=(!decoy&&!hunterTarget&&!turret&&spiders.length&&Math.random()<.12)?nearest(m,spiders):null;
  const chicken=(!decoy&&!hunterTarget&&!turret&&!spider&&m.chickenAggro&&goldenChickens.length)?nearest(m,goldenChickens):null;
- const target=hunterTarget||decoy||turret||spider||chicken||player;
+ const target=m.type==='shooter'?player:(hunterTarget||decoy||turret||spider||chicken||player);
  if(m.frozen<=0){
   let d=dist(m,target),contact=(target===player?player.r:target.type==='decoy'?14:10)+m.r+3;
   const slowFactor=m.slowed>0?.5:1;
-  if(m.type==='shooter'&&!hunterTarget&&!decoy&&!turret&&!spider&&!chicken){
+  if(m.type==='shooter'){
    m.shootCd-=dt;m.shotFlash=Math.max(0,m.shotFlash-dt);
    if(d>m.shootRange){m.x+=(target.x-m.x)/d*m.speed*slowFactor*dt;m.y+=(target.y-m.y)/d*m.speed*slowFactor*dt;}
    else if(m.shootCd<=0){if(!playerGodMode&&player.invuln<=0)player.hp-=m.damage;m.shootCd=1.35;m.shotFlash=.16;effects.push({type:'enemyShot',x:m.x,y:m.y,tx:player.x,ty:player.y,t:0,life:.18});}
